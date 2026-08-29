@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Centro de Mando · Seguridad M365</title>
+<style>
+  :root{
+    --bg:#0b0f1a; --panel:#141a2b; --panel2:#1b2338; --line:#26304d;
+    --txt:#e7ecf6; --dim:#8b97b5; --brand:#667eea; --brand2:#c549d0;
+    --ok:#2ecc71; --warn:#f4b740; --bad:#ff5c6c; --info:#4aa8ff;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--txt);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.5}
+  header{padding:18px 24px;border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+    background:linear-gradient(90deg,rgba(102,126,234,.12),rgba(197,73,208,.06))}
+  .marca{font-weight:800;font-size:19px;letter-spacing:-.3px;
+    background:linear-gradient(90deg,var(--brand),var(--brand2));
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:var(--dim);font-size:13px}
+  .demo{margin-left:auto;padding:6px 12px;border-radius:999px;font-size:12px;
+    font-weight:700;letter-spacing:.5px;background:#3a2a00;color:var(--warn);
+    border:1px solid #5c4400}
+  .live{background:#062a12;color:var(--ok);border:1px solid #0c4a20}
+  .ro{font-size:12px;color:var(--dim);border:1px solid var(--line);
+    padding:5px 10px;border-radius:8px}
+  main{padding:20px 24px;max-width:1280px;margin:0 auto}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+  .kpi .n{font-size:30px;font-weight:800;line-height:1.1}
+  .kpi .l{font-size:12px;color:var(--dim);margin-top:4px}
+  .kpi.bad .n{color:var(--bad)} .kpi.warn .n{color:var(--warn)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px 18px}
+  .card h2{font-size:14px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+  .card h2 .dot{width:8px;height:8px;border-radius:50%;background:var(--brand)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--dim);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.4px}
+  td.mono{font-family:ui-monospace,Menlo,monospace;color:var(--dim)}
+  .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700}
+  .p-alto,.p-alta,.p-incidente{background:#3a0d13;color:var(--bad)}
+  .p-medio,.p-media,.p-degradado{background:#3a2a00;color:var(--warn)}
+  .p-bajo,.p-saludable{background:#06240f;color:var(--ok)}
+  .bar-row{display:flex;align-items:center;gap:10px;margin:6px 0;font-size:13px}
+  .bar-row .lbl{width:130px;color:var(--dim);flex-shrink:0}
+  .bar-row .track{flex:1;background:var(--panel2);border-radius:6px;height:12px;overflow:hidden}
+  .bar-row .fill{height:100%;background:linear-gradient(90deg,var(--brand),var(--brand2))}
+  .bar-row .val{width:34px;text-align:right;font-weight:700}
+  svg .grid-line{stroke:var(--line);stroke-width:1}
+  svg .area{fill:url(#g);opacity:.35} svg .line{fill:none;stroke:var(--brand);stroke-width:2.5}
+  svg text{fill:var(--dim);font-size:10px}
+  footer{color:var(--dim);font-size:12px;text-align:center;padding:24px}
+  a{color:var(--info)}
+  .full{grid-column:1/-1}
+  #err{background:#3a0d13;color:var(--bad);padding:10px 14px;border-radius:10px;margin-bottom:16px;display:none}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <div class="marca">Centro de Mando · Seguridad M365</div>
+    <div class="sub" id="sub">Cargando…</div>
+  </div>
+  <span class="ro" id="ro">🔒 solo lectura</span>
+  <span class="demo" id="badge">DATOS DEMO</span>
+</header>
+
+<main>
+  <div id="err"></div>
+  <div class="kpis" id="kpis"></div>
+
+  <div class="grid">
+    <div class="card full">
+      <h2><span class="dot"></span>Intentos de inicio de sesión fallidos · últimas 24 h</h2>
+      <div id="chart"></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="dot"></span>Usuarios en riesgo</h2>
+      <div id="riesgo"></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="dot"></span>Estado de servicios</h2>
+      <div id="servicios"></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="dot"></span>Fuga de correo / reenvío externo</h2>
+      <div id="exfil"></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="dot"></span>Top de orígenes de fallos</h2>
+      <div id="fallos"></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="dot"></span>Dispositivos por ciudad</h2>
+      <div id="ciudades"></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="dot"></span>Dispositivos</h2>
+      <div id="dispositivos"></div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  Centro de Mando de Seguridad M365 · solo lectura · datos que ves aquí nunca salen de tu máquina ·
+  <a href="https://github.com/earbona23/m365-command-center">código</a>
+</footer>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const cls = s => "p-" + String(s ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
+
+function kpis(k){
+  const items = [
+    ["usuarios","Usuarios",""],
+    ["intentos_fallidos_24h","Fallos de login 24 h","warn"],
+    ["usuarios_riesgo_alto","Riesgo alto","bad"],
+    ["alertas_exfiltracion","Alertas de fuga","bad"],
+    ["servicios_con_problema","Servicios con problema","warn"],
+    ["dispositivos_no_cumplen","Equipos no conformes","warn"],
+  ];
+  $("kpis").innerHTML = items.map(([id,l,c])=>{
+    const v = k[id] ?? 0;
+    const clase = (v>0 && c) ? c : "";
+    return `<div class="kpi ${clase}"><div class="n">${esc(v)}</div><div class="l">${esc(l)}</div></div>`;
+  }).join("");
+}
+
+function chart(serie){
+  const W=1120,H=200,pad=28, max=Math.max(1,...serie.map(p=>p.fallidos));
+  const x=i=>pad+i*(W-2*pad)/(serie.length-1);
+  const y=v=>H-pad-(v*(H-2*pad)/max);
+  const pts=serie.map((p,i)=>`${x(i)},${y(p.fallidos)}`).join(" ");
+  const area=`${pad},${H-pad} ${pts} ${W-pad},${H-pad}`;
+  const gl=[0.25,0.5,0.75,1].map(f=>`<line class="grid-line" x1="${pad}" y1="${H-pad-f*(H-2*pad)}" x2="${W-pad}" y2="${H-pad-f*(H-2*pad)}"/>`).join("");
+  const lbl=serie.map((p,i)=> i%3===0 ? `<text x="${x(i)}" y="${H-8}" text-anchor="middle">${p.hora}</text>`:"").join("");
+  $("chart").innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="none" height="200">
+    <defs><linearGradient id="g" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#667eea"/><stop offset="1" stop-color="#667eea" stop-opacity="0"/></linearGradient></defs>
+    ${gl}<polygon class="area" points="${area}"/><polyline class="line" points="${pts}"/>
+    <text x="${pad}" y="16">máx ${max}/h</text>${lbl}</svg>`;
+}
+
+function tabla(id, filas, cols){
+  if(!filas || !filas.length){ $(id).innerHTML=`<div class="sub">Sin datos.</div>`; return; }
+  const head = cols.map(c=>`<th>${esc(c.t)}</th>`).join("");
+  const body = filas.map(f=>"<tr>"+cols.map(c=>{
+    const v = f[c.k];
+    if(c.pill) return `<td><span class="pill ${cls(v)}">${esc(v)}</span></td>`;
+    return `<td class="${c.mono?'mono':''}">${esc(v)}</td>`;
+  }).join("")+"</tr>").join("");
+  $(id).innerHTML=`<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+}
+
+function barras(id, filas){
+  const max=Math.max(1,...filas.map(f=>f.dispositivos));
+  $(id).innerHTML = filas.map(f=>`<div class="bar-row">
+    <span class="lbl">${esc(f.ciudad)}</span>
+    <span class="track"><span class="fill" style="width:${100*f.dispositivos/max}%"></span></span>
+    <span class="val">${esc(f.dispositivos)}</span></div>`).join("") || `<div class="sub">Sin datos.</div>`;
+}
+
+async function cargar(){
+  try{
+    const cfg = await (await fetch("/api/config")).json();
+    const badge=$("badge");
+    if(cfg.modo==="live"){ badge.textContent="TENANT REAL"; badge.className="demo live"; }
+    $("sub").textContent = `${cfg.solo_lectura?"solo lectura · ":""}${cfg.graph_scopes.length} permisos de Graph`;
+
+    const d = await (await fetch("/api/snapshot")).json();
+    if(d.error){ $("err").style.display="block"; $("err").textContent="Error: "+d.error; return; }
+
+    kpis(d.kpis);
+    chart(d.login_fallidos_serie);
+    tabla("riesgo", d.usuarios_riesgo, [
+      {t:"Usuario",k:"usuario",mono:1},{t:"Nivel",k:"nivel",pill:1},{t:"Detalle",k:"detalle"}]);
+    tabla("servicios", d.salud_servicios, [
+      {t:"Servicio",k:"servicio"},{t:"Estado",k:"estado",pill:1}]);
+    tabla("exfil", d.exfiltracion, [
+      {t:"Usuario",k:"usuario",mono:1},{t:"Destino",k:"destino",mono:1},{t:"Sev.",k:"severidad",pill:1}]);
+    tabla("fallos", d.login_fallidos_top, [
+      {t:"Usuario",k:"usuario",mono:1},{t:"Ciudad",k:"ciudad"},{t:"Intentos",k:"intentos"}]);
+    barras("ciudades", d.dispositivos_por_ciudad);
+    tabla("dispositivos", d.dispositivos, [
+      {t:"Equipo",k:"dispositivo",mono:1},{t:"Ciudad",k:"ciudad"},{t:"Últ. visto",k:"ultimo_visto"},{t:"Nota",k:"nota"}]);
+  }catch(e){
+    $("err").style.display="block"; $("err").textContent="No se pudo cargar: "+e.message;
+  }
+}
+cargar();
+setInterval(cargar, 30000); // refresco cada 30 s
+</script>
+</body>
+</html>
