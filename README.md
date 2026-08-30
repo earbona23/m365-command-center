@@ -1,108 +1,95 @@
 # M365 Command Center
 
-A read-only security dashboard for a Microsoft 365 / Entra ID tenant. It shows, on one
-screen, what a security operator checks across five consoles: failed sign-ins, risky
-users, service health, external mail forwarding (data exfiltration), and where devices
-are signing in from.
+**Every security signal that matters in a Microsoft 365 tenant, on one screen that
+refreshes itself — failed logins, risky users, service health, mail exfiltration, and
+where devices are signing in from.**
 
-It **never writes** to the tenant. That is enforced by a test, not just promised in this
-README — see [Read-only, and how it's enforced](#read-only-and-how-its-enforced).
+![CI](https://github.com/earbona23/m365-command-center/actions/workflows/ci.yml/badge.svg)
+![License: MIT](https://img.shields.io/badge/license-MIT-blue)
+![Read-only](https://img.shields.io/badge/tenant%20access-read--only-brightgreen)
+
+Read-only, always — it never writes to your tenant, and a test enforces that.
+
+---
 
 ## The problem
 
 Sign-in risk lives in Entra. Failed logons live in the audit logs. Service health is a
 different blade. Mailbox forwarding rules are buried in Exchange. Device compliance is in
 Intune. A small team ends up flipping between five consoles to answer one question —
-*"is anything on fire right now?"* — and no one keeps all five open. This puts the signals
-that matter on a single page that refreshes on its own.
+*"is anything on fire right now?"* — and nobody keeps all five open.
+
+This puts the signals that actually matter on a single page that refreshes on its own, so
+the answer is one glance instead of five tabs.
 
 ## See it in 10 seconds — no tenant required
 
 ```bash
 git clone https://github.com/earbona23/m365-command-center
 cd m365-command-center
-python -m app.server        # demo mode: synthetic data, no credentials
+python -m app.server          # demo mode: synthetic data, no credentials
 ```
 
-Open <http://127.0.0.1:8888>. Everything you see is **clearly labelled `DEMO DATA`** — it
-is invented, it comes from no real tenant, and it exists so you can evaluate the tool
-before wiring anything up.
+Open <http://127.0.0.1:8888>. Everything is **clearly labelled `DEMO DATA`** — it is
+invented, from no real tenant, and it exists so you can see the whole thing working before
+wiring anything up.
 
 ![Dashboard in demo mode](docs/screenshot.png)
+
+At a glance: the failed-login curve with its overnight brute-force spike, risky users with
+the reason each was flagged, service health, external mail-forwarding alerts (the classic
+sign of a compromised mailbox), and devices grouped by the city they last signed in from.
+
+## What makes it worth running
+
+- **It runs on synthetic data out of the box.** A dashboard you can't see never earns a
+  second look — so this one shows its full self in one command, no tenant, no setup. The
+  demo is loudly marked as demo; nothing invented is ever presented as real.
+- **Read-only is a verified property, not a promise.** The Graph client exposes only
+  `get()`/`get_all()`. `tests/test_readonly_guarantee.py` walks the code and fails if any
+  Graph write verb appears — so "it only reads" is enforced, not asserted.
+- **No external dependencies in the page.** Charts are hand-drawn inline SVG; there is no
+  CDN, no third-party script. Smaller attack surface, and it works offline.
+- **Local by default.** It binds to `127.0.0.1` and warns you if you expose it further — a
+  SOC dashboard reachable from the internet is itself the leak.
 
 ## Connecting a real tenant
 
 ```bash
 pip install -r requirements.txt
-cp config.example.yaml config.yaml     # fill in tenant/client id; secret via env var
-export M365CC_CLIENT_SECRET=...        # keep the secret out of the file
+cp config.example.yaml config.yaml       # the secret goes in an env var, never the repo
+export M365CC_CLIENT_SECRET=...
 python -m app.server --live
 ```
 
-`config.yaml` is git-ignored. No secret is ever written to the repo, and the dashboard's
-`/api/config` endpoint has a test proving it never returns the secret to the browser.
+**Permissions — all read-only:** `AuditLog.Read.All`, `IdentityRiskyUser.Read.All`,
+`IdentityRiskEvent.Read.All`, `User.Read.All`, `Device.Read.All`, `ServiceHealth.Read.All`,
+`MailboxSettings.Read`. If one is missing, that single panel stays empty with a note; the
+rest of the dashboard still works.
 
-### Permissions it asks for, and why each one
+## A note on privacy
 
-All **read-only, application (app-only)** Microsoft Graph permissions. Nothing here can
-change the tenant.
+Device location is shown at **city level, from sign-in logs** — the granularity Entra
+actually provides. This deliberately does **not** collect or display precise GPS of
+employee devices: that is personal monitoring with consent and legal implications well
+beyond a security dashboard.
 
-| Permission | Powers | Why it's needed |
-|---|---|---|
-| `AuditLog.Read.All` | Failed sign-ins | The failed-login chart and top offenders |
-| `IdentityRiskyUser.Read.All` | Risky users | The risk panel |
-| `IdentityRiskEvent.Read.All` | Risk detections | Risk detail |
-| `User.Read.All` | User inventory | User count, mailbox enumeration |
-| `Device.Read.All` | Device inventory | Devices and their last sign-in city |
-| `ServiceHealth.Read.All` | Service health | The service-status panel |
-| `MailboxSettings.Read` | Forwarding rules | Detecting mail forwarded to external domains |
+## Limitations
 
-If a permission is missing, that **one panel** stays empty with a note; the rest of the
-dashboard still works. It never fails as a whole because one grant is absent.
-
-## Read-only, and how it's enforced
-
-The Graph client (`app/graph.py`) exposes exactly two methods: `get()` and `get_all()`.
-There is no `post`, `patch`, `put`, or `delete`. `tests/test_readonly_guarantee.py` walks
-every file under `app/` and fails if a Graph write verb appears anywhere (the single OAuth
-token request is the one documented exception, and it touches no tenant data). Add a write
-and CI goes red before it ever reaches a tenant.
-
-## How it works
-
-- `app/demo/` — deterministic synthetic tenant, so the suite runs and the demo shows
-  without a real tenant.
-- `app/collectors/` — one read-only function per data source. Each is tested against a
-  fake Graph client, so `pytest` needs no tenant and no network.
-- `app/server.py` — standard-library HTTP server (no web framework: less to attack, less
-  to install). Binds to `127.0.0.1` by default and serves the dashboard plus `/api/*` JSON.
-- `dashboard/index.html` — self-contained. No external scripts, no CDN, charts drawn as
-  inline SVG. It works offline and adds no third-party supply chain.
-
-## A word on privacy
-
-Device location is shown at **city level, derived from sign-in logs** — the granularity
-Entra actually provides. This tool deliberately does **not** collect or display precise
-GPS coordinates of employee devices: that is personal monitoring with consent and legal
-implications well beyond a security dashboard.
-
-## Limitations — what this does not do
-
-- It is a **read-only viewer**, not a SIEM. It does not store history, correlate events
-  over time, or alert. For that, use Sentinel; this complements it, it doesn't replace it.
-- Detections are simple and honest: external forwarding is flagged by comparing the
-  forwarding domain to the user's own. It will miss forwarding done through inbox rules or
-  connectors, and it does not claim otherwise.
-- `--live` has been built against the documented Graph shapes and unit-tested with mocked
-  responses. Validate it against your own tenant before relying on it operationally.
-- Do not expose it to the internet without putting authentication in front of it. A SOC
-  dashboard reachable from the internet is itself the leak. It warns you if you bind it
-  beyond localhost.
+- **It's a read-only viewer, not a SIEM.** It doesn't store history, correlate over time, or
+  alert. For that, use Sentinel; this complements it.
+- **Detections are simple and honest.** External forwarding is flagged by comparing the
+  forwarding domain to the user's own; it will miss forwarding done through inbox rules or
+  connectors, and doesn't claim otherwise.
+- **`--live` is unit-tested with mocked Graph responses.** Validate against your tenant
+  before relying on it.
+- **Never expose it to the internet without authentication in front.** It warns you when you
+  bind beyond localhost.
 
 ## Contributing
 
 New collectors are welcome — keep them read-only, add a mocked test, and the read-only
-guarantee test will hold the line. Run `pytest -q` and `ruff check .` before a PR.
+guarantee test holds the line. Run `pytest -q` and `ruff check .`.
 
 ## License
 
